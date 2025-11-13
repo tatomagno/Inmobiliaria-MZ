@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MZ Inmobiliaria - Panel de Gestión</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS (Mapas) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    
+    <!-- ¡NUEVO! Enlace a la hoja de estilos -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+    <!-- Encabezado Fijo -->
+    <header class="bg-white shadow-md sticky top-0 z-40">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex-shrink-0 flex items-center">
+                    <img class="h-12 w-auto" src="https://firebasestorage.googleapis.com/v0/b/inmobiliaria-mz.firebasestorage.app/o/logo.jpg?alt=media&token=bab5a922-88be-45c0-a643-5b885a0d2465" alt="MZ Estudio Inmobiliario">
+                </div>
+                <!-- Información de Conexión -->
+                <div id="auth-info" class="text-sm text-slate-600 flex items-center gap-4">
+                    <span id="auth-status" class="font-medium text-amber-600">Conectando...</span>
+                    <!-- Botón de Cerrar Sesión (oculto al inicio) -->
+                    <button id="logout-btn" class="btn btn-secondary py-1 px-3 text-sm" style="display: none;">Cerrar Sesión</button>
+                    <span id="user-id-display" class="hidden md:inline-block bg-slate-100 px-2 py-1 rounded"></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Contenedor Principal -->
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+
+        <!-- Vista de Login (Inicial) -->
+        <div id="login-view" class="view max-w-md mx-auto">
+            <div class="card">
+                <h2 class="card-title text-center">Bienvenido</h2>
+                <p class="text-center text-slate-600 mb-6">¿Busca una propiedad?</p>
+                <button onclick="showView('cliente-view')" class="btn btn-primary w-full mb-6">Ver Propiedades (Soy Cliente)</button>
+                
+                <hr class="my-4">
+                
+                <!-- Formulario de Acceso para Staff -->
+                <h3 class="font-semibold text-center text-slate-800 mb-3">Acceso de Personal</h3>
+                <form id="staff-login-form" class="space-y-4">
+                    <input type="email" id="staff-email" class="form-input" placeholder="Email" required>
+                    <input type="password" id="staff-password" class="form-input" placeholder="Contraseña" required>
+                    <button type="submit" id="staff-login-btn" class="btn btn-secondary w-full">Ingresar</button>
+                    <p id="staff-login-status" class="text-xs text-red-500 mt-2 text-center"></p>
+                </form>
+                
+                <p id="init-error" class="text-xs text-red-500 mt-4 text-center"></p>
+            </div>
+        </div>
+
+        <!-- Vista de Navegación de Staff (NUEVA) -->
+        <div id="staff-nav-view" class="view max-w-md mx-auto">
+            <div class="card text-center">
+                <h2 class="card-title text-center">Acceso de Personal</h2>
+                <p class="text-slate-600 mb-6" id="staff-welcome-msg">¡Bienvenido! Seleccione su panel:</p>
+                <div class="space-y-4">
+                    <button onclick="showView('captador-view')" class="btn btn-primary w-full">Panel de Captador</button>
+                    <button onclick="showView('admin-view')" class="btn btn-secondary w-full">Panel de Administración</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vista de Cliente -->
+        <div id="cliente-view" class="view">
+            <button onclick="showView('login-view')" class="btn btn-secondary mb-4">Volver</button>
+            <h2 class="text-3xl font-bold text-slate-900 mb-6">Propiedades Disponibles</h2>
+            <!-- Filtros -->
+            <div class="flex flex-wrap gap-4 mb-6 bg-white p-4 rounded-lg shadow">
+                <select id="client-filter-type" class="form-input w-auto">
+                    <option value="">Tipo (Todos)</option>
+                    <option>Alquiler</option>
+                    <option>Alquiler Temporario</option>
+                    <option>Venta</option>
+                    <option>Administración</option>
+                </select>
+                <select id="client-filter-class" class="form-input w-auto">
+                    <option value="">Clase (Todos)</option>
+                    <option>Casa</option>
+                    <option>Departamento</option>
+                    <option>Terreno</option>
+                    <option>Local</option>
+                    <option>Oficina</option>
+                </select>
+                <select id="client-filter-barrio" class="form-input w-auto">
+                    <option value="">Barrio (Todos)</option>
+                    <!-- Se rellena con JS -->
+                </select>
+            </div>
+            <!-- Mensaje de Carga/Error -->
+            <p id="client-status" class="text-slate-500">Cargando propiedades...</p>
+            <!-- Listado de Propiedades -->
+            <div id="client-property-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Se rellena con JS -->
+            </div>
+        </div>
+
+        <!-- Vista de Captador -->
+        <div id="captador-view" class="view">
+            <!-- Botón Volver cambia a staff-nav-view -->
+            <button onclick="showView('staff-nav-view')" class="btn btn-secondary mb-4">Volver al Menú</button>
+            <div class="max-w-xl mx-auto card">
+                <h2 class="card-title">Cargar Borrador de Propiedad</h2>
+                <p class="text-slate-600 mb-6">Complete los datos iniciales. Administración completará el resto.</p>
+                
+                <form id="captador-form" class="space-y-4">
+                    <!-- Nuevos Campos de Propietario -->
+                    <fieldset class="border border-slate-300 p-4 rounded-lg">
+                        <legend class="text-lg font-medium text-slate-700 px-2">Datos del Propietario</legend>
+                        <div class="space-y-4 mt-2">
+                            <input type="text" id="captador-form-owner" class="form-input" placeholder="Apellido y Nombre" required>
+                            <input type="tel" id="captador-form-phone" class="form-input" placeholder="Teléfono de Contacto" required>
+                            <input type="email" id="captador-form-email" class="form-input" placeholder="Email (Opcional)">
+                        </div>
+                    </fieldset>
+                    
+                     <!-- Datos de la Propiedad -->
+                    <fieldset class="border border-slate-300 p-4 rounded-lg">
+                        <legend class="text-lg font-medium text-slate-700 px-2">Datos de la Propiedad</legend>
+                        <div class="space-y-4 mt-2">
+                            <input type="text" id="captador-form-address" class="form-input" placeholder="Dirección (Calle y Nro)" required>
+                            <!-- ¡CAMPO BARRIO SIN 'required'! -->
+                            <input type="text" id="captador-form-barrio" class="form-input" placeholder="Barrio" list="barrios-list">
+                            <select id="captador-form-type" class="form-input" required>
+                                <option value="">Tipo de Operación...</option>
+                                <option>Alquiler</option>
+                                <option>Alquiler Temporario</option>
+                                <option>Venta</option>
+                                <option>Administración</option>
+                            </select>
+                            <select id="captador-form-class" class="form-input" required>
+                                <option value="">Clase de Propiedad...</option>
+                                <option>Casa</option>
+                                <option>Departamento</option>
+                                <option>Terreno</option>
+                                <option>Local</option>
+                                <option>Oficina</option>
+                            </select>
+                            <input type="number" id="captador-form-price" class="form-input" placeholder="Precio (Opcional)">
+                            <textarea id="captador-form-desc" rows="3" class="form-input" placeholder="Descripción Breve (Opcional)"></textarea>
+                        </div>
+                    </fieldset>
+                    
+                    <button type="submit" id="captador-submit-btn" class="btn btn-primary w-full" disabled>Guardar Borrador</button>
+                    <p id="captador-form-status" class="text-sm text-center"></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Vista de Administrador -->
+        <div id="admin-view" class="view">
+             <!-- Botón Volver cambia a staff-nav-view -->
+            <button onclick="showView('staff-nav-view')" class="btn btn-secondary mb-4">Volver al Menú</button>
+            <h2 class="text-3xl font-bold text-slate-900 mb-6">Panel de Administración</h2>
+            <!-- Búsqueda/Acciones Rápidas por ID -->
+            <div class="mb-6 flex gap-2 items-center">
+                <input id="admin-search-id" type="text" placeholder="Buscar por ID de propiedad..." class="form-input flex-1">
+                <button id="admin-search-btn" class="btn btn-secondary">Buscar</button>
+                <button id="admin-delete-id-btn" class="btn btn-danger">Eliminar por ID</button>
+                <p id="admin-search-status" class="text-sm text-slate-500 ml-4"></p>
+            </div>
+            <!-- Búsqueda por Domicilio (autocompletar parcial) -->
+            <div class="mb-6">
+                <label class="form-label">Buscar por Domicilio (>=3 caracteres)</label>
+                <input id="admin-search-address" type="text" placeholder="Ej: Pueyrredón 123 o Puey" class="form-input">
+                <div id="admin-search-address-results" class="mt-2 space-y-2"></div>
+            </div>
+            
+            <!-- Sección de Borradores Pendientes -->
+            <div class="mb-8">
+                <h3 class="text-2xl font-semibold text-slate-800 mb-4">Borradores Pendientes</h3>
+                <p id="pending-status" class="text-slate-500 mb-3">Cargando...</p>
+                <div id="pending-properties-list" class="space-y-3">
+                    <!-- Los borradores se cargan aquí -->
+                </div>
+            </div>
+
+            <hr class="my-8 border-slate-300">
+
+            <!-- Formulario Completo de Administración -->
+            <h3 class="text-2xl font-semibold text-slate-800 mb-4" id="admin-form-title">Cargar Nueva Propiedad (o completar pendiente)</h3>
+            <form id="admin-form" class="space-y-6 card">
+                
+                <input type="hidden" id="prop-id">
+                
+                <!-- Datos Básicos -->
+                <fieldset class="border border-slate-300 p-4 rounded-lg">
+                    <legend class="text-lg font-medium text-slate-700 px-2">Datos Básicos</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <select id="prop-type" class="form-input" required>
+                            <option value="">Tipo de Operación...</option>
+                            <option>Alquiler</option>
+                            <option>Alquiler Temporario</option>
+                            <option>Venta</option>
+                            <option>Administración</option>
+                        </select>
+                        <select id="prop-class" class="form-input" required>
+                            <option value="">Clase de Propiedad...</option>
+                            <option>Casa</option>
+                            <option>Departamento</option>
+                            <option>Terreno</option>
+                            <option>Local</option>
+                            <option>Oficina</option>
+                        </select>
+                    </div>
+                </fieldset>
+
+                <!-- Propietario -->
+                <fieldset class="border border-slate-300 p-4 rounded-lg">
+                    <legend class="text-lg font-medium text-slate-700 px-2">Datos del Propietario</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                        <input type="text" id="prop-owner" class="form-input md:col-span-1" placeholder="Apellido y Nombre">
+                        <input type="tel" id="prop-phone" class="form-input md:col-span-1" placeholder="Teléfono">
+                        <input type="email" id="prop-email" class="form-input md:col-span-1" placeholder="Email">
+                    </div>
+                </fieldset>
+                
+                <!-- Domicilio -->
+                <fieldset class="border border-slate-300 p-4 rounded-lg">
+                    <legend class="text-lg font-medium text-slate-700 px-2">Domicilio del Inmueble</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                        <input type="text" id="addr-street" placeholder="Calle" class="form-input">
+                        <input type="text" id="addr-num" placeholder="Nro" class="form-input">
+                        <input type="text" id="addr-barrio" placeholder="Barrio" class="form-input" list="barrios-list">
+                        <input type="text" id="addr-floor" placeholder="Piso" class="form-input">
+                        <input type="text" id="addr-depto" placeholder="Depto / Local / Oficina" class="form-input">
+                        <input type="text" id="addr-tower" placeholder="Torre" class="form-input">
+                        <input type="text" id="addr-manzana" placeholder="Manzana" class="form-input">
+                        <input type="text" id="addr-lote" placeholder="Lote" class="form-input">
+                        <input type="text" id="addr-extra" placeholder="Datos Adicionales" class="form-input md:col-span-3">
+                    </div>
+                </fieldset>
+
+                <!-- Mapa -->
+                <fieldset class="border border-slate-300 p-4 rounded-lg">
+                    <legend class="text-lg font-medium text-slate-700 px-2">Ubicación en Mapa</legend>
+                    <p class="text-sm text-slate-500 mb-2">Haga clic en el mapa para establecer la ubicación. (Coordenadas de Córdoba por defecto).</p>
+                    <div id="admin-map"></div>
+                    <div class="flex gap-4 mt-2">
+                        <input type="text" id="map-lat" placeholder="Latitud" class="form-input w-1/2" readonly>
+                        <input type="text" id="map-lng" placeholder="Longitud" class="form-input w-1/2" readonly>
+                    </div>
+                </fieldset>
+                
+                <!-- Datos Catastrales e Impositivos -->
+                <fieldset class="border border-slate-300 p-4 rounded-lg">
+                    <legend class="text-lg font-medium text-slate-700 px-2">Datos Catastrales e Impositivos</legend>
+                    <div class="space-y-3 mt-2">
+                        <fieldset>
+                            <label class="form-label text-sm">Designación Catastral</label>
+                            <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+                                <input type="text" id="cat-distr" placeholder="Distr." class="form-input">
+                                <input type="text" id="cat-circ" placeholder="Circ." class="form-input">
+                                <input type="text" id="cat-zona" placeholder="Zona" class="form-input">
+                                <input type="text" id="cat-manzana" placeholder="Manzana" class="form-input">
+                                <input type="text" id="cat-lote" placeholder="Lote" class="form-input">
+                                <input type="text" id="cat-ph" placeholder="PH" class="form-input">
+                            </div>
+                        </fieldset>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <input type="text" id="tax-rentas" placeholder="Nro. Cuenta Rentas" class="form-input">
+                            <input type="text" id="tax-muni" placeholder="Nro. Cuenta Municipalidad" class="form-input">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Suministros -->
+                <fieldset class="border border-slate-300 p-4 rounded-lg">
+                    <legend class="text-lg font-medium text-slate-700 px-2">Suministros</legend>
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                        <input type="text" id="serv-epec" placeholder="Nro. Suministro EPEC" class="form-input">
+                        <input type="text" id="serv-ecogas" placeholder="Nro. Cuenta Ecogas" class="form-input">
+                        <input type="text" id="serv-agua" placeholder="Nro. Cuenta Agua" class="form-input">
+                    </div>
+                </fieldset>
+
+                <!-- Detalles de la Propiedad -->
+                <fieldset class="border border-slate-300 p-4 rounded-lg">
+                    <legend class="text-lg font-medium text-slate-700 px-2">Detalles</legend>
+                    <div class="space-y-4 mt-2">
+                        <div>
+                            <label for="prop-desc" class="form-label">Descripción Completa</label>
+                            <textarea id="prop-desc" rows="5" class="form-input" placeholder="Descripción detallada de la propiedad..."></textarea>
+                        </div>
+                        <div>
+                            <label for="prop-price" class="form-label">Precio (ARS)</label>
+                            <input type="number" id="prop-price" class="form-input" placeholder="Ej: 250000" required>
+                        </div>
+                        <div>
+                            <label for="prop-tasacion" class="form-label">Tasación (Fórmula/Valor)</label>
+                            <input type="text" id="prop-tasacion" class="form-input" placeholder="Detalles de la tasación...">
+                        </div>
+                        <div>
+                            <label for="prop-date" class="form-label">Fecha de Carga</label>
+                            <input type="date" id="prop-date" class="form-input">
+                        </div>
+                    </div>
+                </fieldset>
+
+                        <!-- Estado (Publicado / Alquilado / Vendido) -->
+                        <fieldset class="border border-slate-300 p-4 rounded-lg">
+                            <legend class="text-lg font-medium text-slate-700 px-2">Estado de la Propiedad</legend>
+                            <div class="mt-2">
+                                <select id="prop-status" class="form-input">
+                                    <option value="published">Publicado</option>
+                                    <option value="rented">Alquilado</option>
+                                    <option value="sold">Vendido</option>
+                                </select>
+                                <p class="text-sm text-slate-500 mt-2">Seleccione el estado de la propiedad (afecta la etiqueta que ven los clientes).</p>
+                            </div>
+                        </fieldset>
+
+                <!-- Fotos -->
+                <fieldset class="border border-slate-300 p-4 rounded-lg">
+                    <legend class="text-lg font-medium text-slate-700 px-2">Fotos del Inmueble (max 10)</legend>
+                    <input type="file" id="prop-files" class="form-input" multiple accept="image/jpeg, image/png, image/webp" disabled>
+                    <p class="text-sm text-slate-500 mt-2">Seleccione hasta 10 imágenes. La primera será la portada.</p>
+                    <div id="file-list-preview" class="mt-4 text-sm text-slate-600 space-y-1"></div>
+                </fieldset>
+                
+                <!-- Objetivo del Cliente -->
+                <fieldset class="border border-slate-300 p-4 rounded-lg">
+                    <legend class="text-lg font-medium text-slate-700 px-2">Objetivo del Cliente (Venta)</legend>
+                    <div class="space-y-2 mt-2">
+                        <div class="flex items-center gap-2"><input type="checkbox" id="obj-negocio" class="form-checkbox"><label for="obj-negocio">Negocio</label></div>
+                        <div class="flex items-center gap-2"><input type="checkbox" id="obj-viaje" class="form-checkbox"><label for="obj-viaje">Viaje exterior</label></div>
+                        <div class="flex items-center gap-2"><input type="checkbox" id="obj-cambio" class="form-checkbox"><label for="obj-cambio">Cambio de domicilio</label></div>
+                        <div class="flex items-center gap-4">
+                            <input type="checkbox" id="obj-otro-check" class="form-checkbox"><label for="obj-otro-check">Otro:</label>
+                            <input type="text" id="obj-otro-text" class="form-input flex-1" placeholder="Especificar...">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- Acciones -->
+                <div class="flex flex-col sm:flex-row gap-4 pt-4">
+                    <button type="submit" id="admin-submit-btn" class="btn btn-primary flex-1" disabled>Publicar Propiedad</button>
+                    <button type="button" id="admin-form-clear" class="btn btn-secondary">Limpiar Formulario</button>
+                    <button type="button" id="admin-delete-current-btn" class="btn btn-danger" title="Eliminar la publicación cargada">Eliminar Publicación</button>
+                </div>
+                <p id="admin-form-status" class="text-sm text-center"></p>
+
+            </form>
+        </div>
+
+    </div>
+
+    <!-- Lista de sugerencias para Barrios (compartida) -->
+    <datalist id="barrios-list">
+        <!-- Se rellena con JS -->
+    </datalist>
+
+    <!-- Modal de Confirmación de Borrado -->
+    <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" style="display: none;">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <h3 class="text-lg font-bold text-slate-900 mb-4">Confirmar Eliminación</h3>
+            <p class="text-slate-600 mb-6">¿Está seguro de que desea eliminar este borrador? Esta acción no se puede deshacer.</p>
+            <div class="flex justify-end gap-4">
+                <button id="delete-modal-cancel" class="btn btn-secondary">Cancelar</button>
+                <button id="delete-modal-confirm" class="btn btn-danger">Eliminar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Detalle de Propiedad (Cliente) -->
+    <div id="detail-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50" style="display: none;">
+        <div class="bg-white p-0 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <!-- Contenido del Modal -->
+            <div class="sticky top-0 bg-white p-4 border-b border-slate-200 flex justify-between items-center z-10">
+                <h3 class="text-2xl font-bold text-slate-900" id="detail-title">Detalle de la Propiedad</h3>
+                <button id="detail-modal-close" class="text-slate-500 hover:text-slate-800 text-3xl leading-none">&times;</button>
+            </div>
+            
+            <div class="p-6">
+                <!-- Galería de Fotos -->
+                <div class="mb-6">
+                    <h4 class="text-xl font-semibold text-slate-800 mb-3">Galería</h4>
+                    <div class="bg-slate-200 rounded-lg mb-2">
+                        <img id="detail-main-image" src="https://placehold.co/800x600/e2e8f0/94a3b8?text=Cargando..." alt="Foto principal de la propiedad" class="w-full h-auto max-h-[400px] object-contain rounded-lg">
+                    </div>
+                    <div id="detail-thumbnail-gallery" class="flex gap-2 overflow-x-auto p-1">
+                        <!-- Thumbnails se cargan aquí -->
+                    </div>
+                </div>
+                
+                <!-- Detalles -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h4 class="text-xl font-semibold text-slate-800 mb-3">Información</h4>
+                        <p class="text-3xl font-bold text-blue-600 mb-4" id="detail-price"></p>
+                        <div class="space-y-2 text-slate-700">
+                            <p><strong>Operación:</strong> <span id="detail-type" class="font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded"></span></p>
+                            <p><strong>Clase:</strong> <span id="detail-class" class="font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded"></span></p>
+                            <p><strong>Barrio:</strong> <span id="detail-barrio" class="font-medium text-slate-900"></span></p>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-semibold text-slate-800 mb-3">Descripción</h4>
+                        <p class="text-slate-600 whitespace-pre-wrap" id="detail-desc"></p>
+                    </div>
+                </div>
+
+                <!-- Mapa -->
+                <div>
+                    <h4 class="text-xl font-semibold text-slate-800 mb-3">Ubicación</h4>
+                    <div id="detail-map"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS (Mapas) -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <!-- ¡CAMBIO! Volvemos a main.js -->
+    <script src="main.js" type="module"></script>
+    
+</body>
+</html>
