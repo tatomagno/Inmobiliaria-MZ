@@ -47,11 +47,14 @@
                 
                 <hr class="my-4">
                 
-                <!-- Formulario de Acceso para Staff -->
+                 <!-- Formulario de Acceso para Staff -->
                 <h3 class="font-semibold text-center text-slate-800 mb-3">Acceso de Personal</h3>
                 <form id="staff-login-form" class="space-y-4">
                     <input type="email" id="staff-email" class="form-input" placeholder="Email" required>
-                    <input type="password" id="staff-password" class="form-input" placeholder="Contraseña" required>
+                    <div class="relative">
+                        <input type="password" id="staff-password" class="form-input pr-12" placeholder="Contraseña" required>
+                        <button type="button" id="staff-password-toggle" class="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-slate-600" aria-label="Mostrar contraseña">Mostrar</button>
+                    </div>
                     <button type="submit" id="staff-login-btn" class="btn btn-secondary w-full">Ingresar</button>
                     <p id="staff-login-status" class="text-xs text-red-500 mt-2 text-center"></p>
                 </form>
@@ -427,4 +430,5 @@
     <script src="main.js" type="module"></script>
     
 </body>
+
 </html>
